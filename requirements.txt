@@ -1,0 +1,5 @@
+ccxt
+finance-datareader
+pyarrow
+matplotlib
+pandas

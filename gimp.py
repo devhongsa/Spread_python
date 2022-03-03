@@ -16,6 +16,12 @@ noww=now_date.strftime("%Y-%m-%d %H:%M:%S")  #datetime to string,  이거는 end
 
 
 
+# 저장하는 부분과 ohlcv를 따로 결과를 가져오는것을 분리했으면 좋겠습니다.
+# 예를들어 ohlcv_binance df를 따로 가져오고, save_ohlcv function을 따로 만드는게 좋을거 같습니다.
+# 환율 데이터는 https://github.com/FinanceData/FinanceDataReader/
+# 이 라이브러리를 쓰면 좋을것 같아요.
+# 제생각에는 binance_ohlcv dataframe을 따로 결과값을 내고, 위의 라이브러리를 이용해서 환율 dataframe을 가져온후
+# day에 맞춰서 조인을 한 후 환율을 고려한 dataframe을 만드는 게 더 깔끔하지 않을까 싶습니다.
 def ohlcv_binance(symbol, start, end):
 
     binance = ccxt.binance({'options' : { 'defaultType': 'future'}}) 
@@ -44,6 +50,8 @@ def ohlcv_binance(symbol, start, end):
             price.append(i[4])
             
         start = start + datetime.timedelta(minutes=1000)
+        # 1000으로 설정한 이유는 뭔가요? binance는 한번에 500개씩 가져올수 있는거 같은데 마지막 봉의 timeframe
+        # 으로부터 60000 milliseconds 부터 가져오는 식으로 바꾸는게 좋을 것 같습니다.
         start1=start.strftime("%Y-%m-%d %H:%M:%S")
         since1 = binance.parse8601(start1)
 
@@ -54,6 +62,7 @@ def ohlcv_binance(symbol, start, end):
     binance['timestamp']=pd.to_datetime(binance['timestamp']/1000, unit='s')
     binance['timestamp']=binance['timestamp']+datetime.timedelta(hours=9)
     
+    # 여기서부터 두부분으로 나누면 좋을 것 같아요.
     file1 = 'C:\\Users\\홍사\\Documents\\USD_KRW 내역.csv'
     #file2 = 'C:\\Users\\홍사\\Documents\\binance_future_BTCUSDT.csv'
     #file3 = 'C:\\Users\\홍사\\Documents\\upbit_spot_KRW-BTC.csv'
@@ -103,6 +112,8 @@ def ohlcv_binance(symbol, start, end):
     
 
 
+# 함수를 거래소별로 나누는것은 별로 좋지 않은것 같습니다. 단순 ohlcv를 가져오는 것을
+# 어떤 거래소도 가져올 수 있게 함수를 만들고, 그 이후에 환율 데이터를 받아와서 환율을 고려하는 작업을 하는게 좋을것 같습니다.
 
 def ohlcv_upbit(symbol, start, end):
     start=datetime.datetime.strptime(start,'%Y-%m-%d %H:%M:%S')
@@ -139,34 +150,36 @@ def ohlcv_upbit(symbol, start, end):
     df.to_csv('C:\\Users\\홍사\\Documents\\upbit_spot_%s.csv'%(symbol.replace('/','')),index=False,header=True)
     return df
 
+# main.py 로 옮기는게 좋을것 같습니다.
+
 ## 환율 데이터는 따로 다운받아야함.
-binance = ohlcv_binance('BTC/USDT','2022-01-25 00:00:00', noww)         #argument (symbol, since, to)
-upbit = ohlcv_upbit('KRW-BTC','2022-01-25 00:00:00', noww)
+# binance = ohlcv_binance('BTC/USDT','2022-01-25 00:00:00', noww)         #argument (symbol, since, to)
+# upbit = ohlcv_upbit('KRW-BTC','2022-01-25 00:00:00', noww)
 
-## binance와 upbit timestamp 동기화 작업.
-print('start data parsing')
-df = pd.concat([binance,upbit])
-df.sort_values('timestamp', ascending=True)
-df.drop_duplicates(['timestamp'], keep=False, inplace = True)
+# ## binance와 upbit timestamp 동기화 작업.
+# print('start data parsing')
+# df = pd.concat([binance,upbit])
+# df.sort_values('timestamp', ascending=True)
+# df.drop_duplicates(['timestamp'], keep=False, inplace = True)
 
-print(df)
+# print(df)
 
-for i in df.index:
-    if df['exchange'][i] == 'binance' :
-        binance.drop([i],inplace=True)
+# for i in df.index:
+#     if df['exchange'][i] == 'binance' :
+#         binance.drop([i],inplace=True)
 
-    else:
-        upbit.drop([i], inplace=True)
+#     else:
+#         upbit.drop([i], inplace=True)
 
-binance.reset_index(drop=True, inplace=True)
-upbit.reset_index(drop=True, inplace=True)
+# binance.reset_index(drop=True, inplace=True)
+# upbit.reset_index(drop=True, inplace=True)
 
-print(binance)
-print(upbit)
+# print(binance)
+# print(upbit)
 
-## plot 그리기
-upbit['gimp'] = (upbit['price']-binance['krw_price'])/binance['krw_price'] * 100
-upbit['ma'] = upbit['gimp'].rolling(window=1440, min_periods=1).mean()
+# ## plot 그리기
+# upbit['gimp'] = (upbit['price']-binance['krw_price'])/binance['krw_price'] * 100
+# upbit['ma'] = upbit['gimp'].rolling(window=1440, min_periods=1).mean()
 
-upbit.plot(x='timestamp',y=['gimp','ma'])
+# upbit.plot(x='timestamp',y=['gimp','ma'])
 
