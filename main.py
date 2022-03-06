@@ -1,4 +1,4 @@
-import gimp
+import gimp2
 import pandas as pd
 import time
 import datetime
@@ -12,33 +12,21 @@ noww=now_date.strftime("%Y-%m-%d %H:%M:%S")  #datetime to string,  이거는 end
 
 if __name__ == '__main__':
     
-    binance = gimp.ohlcv_binance('BTC/USDT','2022-01-25 00:00:00', noww)         #argument (symbol, since, to)
-    upbit = gimp.ohlcv_upbit('KRW-BTC','2022-01-25 00:00:00', noww)
+    startTime = '2022-03-04 00:00:00'
+    startTime_usdkrw = startTime[:10]
+    endTime = noww
+    
+    #ex_1은 외국거래소 , ex_2는 한국거래소 
+    ex_1 = 'binance'
+    ex_2 = 'upbit'
+    
+    ex_df1 = gimp2.ohlcv(ex_1,'BTC/USDT', startTime, endTime)
+    ex_df2 = gimp2.ohlcv(ex_2,'BTC/KRW', startTime, endTime)
+    
+    ex_df1, ex_df2 = gimp2.dfParsing(ex_df1, ex_df2, startTime_usdkrw)
+    
 
-    ## binance와 upbit timestamp 동기화 작업.
-    print('start data parsing')
-    df = pd.concat([binance,upbit])
-    df.sort_values('timestamp', ascending=True)
-    df.drop_duplicates(['timestamp'], keep=False, inplace = True)
+    ex_df1['ma'] = ex_df1['gimp'].rolling(window=1440, min_periods=1).mean()
 
-    print(df)
-
-    for i in df.index:
-        if df['exchange'][i] == 'binance' :
-            binance.drop([i],inplace=True)
-
-        else:
-            upbit.drop([i], inplace=True)
-
-    binance.reset_index(drop=True, inplace=True)
-    upbit.reset_index(drop=True, inplace=True)
-
-    print(binance)
-    print(upbit)
-
-    ## plot 그리기
-    upbit['gimp'] = (upbit['price']-binance['krw_price'])/binance['krw_price'] * 100
-    upbit['ma'] = upbit['gimp'].rolling(window=1440, min_periods=1).mean()
-
-    upbit.plot(x='timestamp',y=['gimp','ma'])
+    ex_df1.plot(x='timestamp',y=['gimp','ma'])
 
