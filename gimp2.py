@@ -4,6 +4,7 @@ import datetime
 import time
 import pandas as pd
 import exchangeOption as op
+import matplotlib.pyplot as plt
 
 now=time.time()   #unixtime
 now2=int(now*1000)
@@ -40,13 +41,14 @@ def ohlcv(exchange, symbol, start, end):
         start1=start.strftime("%Y-%m-%d %H:%M:%S")
         since = Exchange.parse8601(start1)
 
-        time.sleep(1)
+        time.sleep(0.15)
         
     
     ex_df = pd.DataFrame({'timestamp' : timestamp, 'price' : price})
     ex_df['timestamp']=pd.to_datetime(ex_df['timestamp']/1000, unit='s')
     ex_df['timestamp']=ex_df['timestamp']+datetime.timedelta(hours=9)
     ex_df['exchange'] = exchange
+    ex_df['symbol'] = symbol
     print(ex_df)
     return ex_df
     
@@ -101,13 +103,57 @@ def dfParsing(ex_df1, ex_df2, start):
     
     ex_df1['krw_price'] = ex_df1['price']*ex_df1['usdkrw']
 
-    pd.options.display.float_format = '{:.2f}'.format
-    
+    #Gimp 데이터 추가 
     ex_df1['gimp'] = (ex_df2['price']-ex_df1['krw_price'])/ex_df1['krw_price'] * 100
     
+    pd.options.display.float_format = '{:.4f}'.format
     
     print(ex_df1)
     return ex_df1, ex_df2
 
+def saveDf(df):
+    exchange = df['exchange'][0]
+    symbol = df['symbol'][0].replace('/','')
+    df.to_csv('C:\\Users\\Public\\Documents\\%s_%s.csv'%(exchange,symbol),index=False,header=True)
+    
+    
+def plotDf(ex_df1,maWindow):
+    maWindow = maWindow*60
+    
+    ex_df1['ma'] = ex_df1['gimp'].rolling(window=maWindow, min_periods=1).mean()
+    ex_df1['spread'] = ex_df1['gimp']-ex_df1['ma']
+    
+    pd.options.display.float_format = '{:.4f}'.format
+    
+    print(ex_df1)
+    
+    # ax1 = plt.subplot(2,1,1)
+    # ax2 = plt.subplot(2,1,2)
+    
+    # ax1.plot(ex_df1['timestamp'],ex_df1['gimp'])
+    # ax1.plot(ex_df1['timestamp'],ex_df1['ma'])
+    
+    # ax2.plot(ex_df1['timestamp'],ex_df1['spread'])
+    
+    # ax2.axhline(y=0, color = 'r', linewidth=1)
+    
+    plt.plot(ex_df1['timestamp'],ex_df1['gimp'])
+    plt.plot(ex_df1['timestamp'],ex_df1['ma'])
+    
+    print(ex_df1['gimp'].min())
 
+    #plt.fill_between(ex_df1['timestamp'], ex_df1['gimp'], 0, where=ex_df1['spread']>=0.55, facecolor='red', alpha=0.5)
+    plt.fill_between(ex_df1['timestamp'], 0.0, ex_df1['gimp'].max(), where=(abs(ex_df1['spread'])>=0.5), facecolor='red', alpha=0.5)
+    
+    plt.show()
+    
+    
+    
+    
+    
+    
+    
+    
+    
+    
     

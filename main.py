@@ -2,6 +2,7 @@ import gimp2
 import pandas as pd
 import time
 import datetime
+import matplotlib.pyplot as plt
 
 now=time.time()   #unixtime
 now2=int(now*1000)
@@ -12,7 +13,7 @@ noww=now_date.strftime("%Y-%m-%d %H:%M:%S")  #datetime to string,  이거는 end
 
 if __name__ == '__main__':
     
-    startTime = '2022-03-04 00:00:00'
+    startTime = '2022-02-20 00:00:00'
     startTime_usdkrw = startTime[:10]
     endTime = noww
     
@@ -25,8 +26,8 @@ if __name__ == '__main__':
     
     ex_df1, ex_df2 = gimp2.dfParsing(ex_df1, ex_df2, startTime_usdkrw)
     
-
-    ex_df1['ma'] = ex_df1['gimp'].rolling(window=1440, min_periods=1).mean()
-
-    ex_df1.plot(x='timestamp',y=['gimp','ma'])
-
+    #gimp2.saveDf(ex_df1)
+    #gimp2.saveDf(ex_df2)
+    
+    #maWindow는 시간단위 
+    gimp2.plotDf(ex_df1,maWindow=24)
