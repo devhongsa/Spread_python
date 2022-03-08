@@ -49,10 +49,10 @@ def ohlcv(exchange, symbol, start, end):
     ex_df['timestamp']=ex_df['timestamp']+datetime.timedelta(hours=9)
     ex_df['exchange'] = exchange
     ex_df['symbol'] = symbol
-    print(ex_df)
+    #print(ex_df)
     return ex_df
     
-def dfParsing(ex_df1, ex_df2, start):
+def dfParsing(ex_df1, ex_df2, start, maWindow):
     
     #2개 거래소 timestamp 동기화
     ex_1 = ex_df1['exchange'][0]
@@ -73,8 +73,8 @@ def dfParsing(ex_df1, ex_df2, start):
     ex_df1.reset_index(drop=True, inplace=True)
     ex_df2.reset_index(drop=True, inplace=True)
 
-    print(ex_df1)
-    print(ex_df2)
+    #print(ex_df1)
+    #print(ex_df2)
 
 
     
@@ -106,9 +106,15 @@ def dfParsing(ex_df1, ex_df2, start):
     #Gimp 데이터 추가 
     ex_df1['gimp'] = (ex_df2['price']-ex_df1['krw_price'])/ex_df1['krw_price'] * 100
     
+    #ma , spread 데이터 추가 
+    maWindow = maWindow*60
+    
+    ex_df1['ma'] = ex_df1['gimp'].rolling(window=maWindow, min_periods=1).mean()
+    ex_df1['spread'] = ex_df1['gimp']-ex_df1['ma']
+    
     pd.options.display.float_format = '{:.4f}'.format
     
-    print(ex_df1)
+    #print(ex_df1)
     return ex_df1, ex_df2
 
 def saveDf(df):
@@ -117,15 +123,9 @@ def saveDf(df):
     df.to_csv('C:\\Users\\Public\\Documents\\%s_%s.csv'%(exchange,symbol),index=False,header=True)
     
     
-def plotDf(ex_df1,maWindow):
-    maWindow = maWindow*60
+def plotDf(ex_df1, buyIndex, sellIndex):
     
-    ex_df1['ma'] = ex_df1['gimp'].rolling(window=maWindow, min_periods=1).mean()
-    ex_df1['spread'] = ex_df1['gimp']-ex_df1['ma']
-    
-    pd.options.display.float_format = '{:.4f}'.format
-    
-    print(ex_df1)
+    #print(ex_df1)
     
     # ax1 = plt.subplot(2,1,1)
     # ax2 = plt.subplot(2,1,2)
@@ -139,18 +139,82 @@ def plotDf(ex_df1,maWindow):
     
     plt.plot(ex_df1['timestamp'],ex_df1['gimp'])
     plt.plot(ex_df1['timestamp'],ex_df1['ma'])
-    
-    print(ex_df1['gimp'].min())
 
     #plt.fill_between(ex_df1['timestamp'], ex_df1['gimp'], 0, where=ex_df1['spread']>=0.55, facecolor='red', alpha=0.5)
-    plt.fill_between(ex_df1['timestamp'], 0.0, ex_df1['gimp'].max(), where=(abs(ex_df1['spread'])>=0.5), facecolor='red', alpha=0.5)
+    plt.fill_between(ex_df1['timestamp'], ex_df1['gimp'].min(), ex_df1['gimp'].max(), where=(abs(ex_df1['spread'])>=0.6), facecolor='red', alpha=0.5)
+    
+    for i in buyIndex:
+        plt.annotate('buy',xy=(ex_df1['timestamp'][i],ex_df1['gimp'][i]), xytext=(ex_df1['timestamp'][i],ex_df1['gimp'][i]+0.1),arrowprops=dict(facecolor='red'))
+    for i in sellIndex:
+        plt.annotate('sell',xy=(ex_df1['timestamp'][i],ex_df1['gimp'][i]), xytext=(ex_df1['timestamp'][i],ex_df1['gimp'][i]+0.1),arrowprops=dict(facecolor='blue'))
     
     plt.show()
     
     
+def tradingResult(ex_df1,ex_df2, spreadIn, spreadAddIn, spreadOut, amount):
     
+    dfBuy = pd.DataFrame(columns=['timestamp','buyInPrice','sellInPrice','buySpread','amount','gimp'])
+    dfSell = pd.DataFrame(columns=['timestamp','buyOutPrice','sellOutPrice','sellSpread','amount','gimp','usdkrw'])
     
+    outControl = False
     
+    buyIndex = []
+    sellIndex = []
+    
+    for i in ex_df1.index:
+        
+        if outControl == False : 
+            if ex_df1.at[i,'spread'] <= spreadIn:
+                dfBuy.loc[len(dfBuy)] = [ex_df1.at[i,'timestamp'],ex_df2.at[i,'price'], ex_df1.at[i,'price'],ex_df1.at[i,'spread'],
+                                         amount, ex_df1.at[i,'gimp']]
+                buyIndex.append(i)
+                outControl = True
+        
+        elif outControl == True and ex_df1.at[i,'spread'] - dfBuy['buySpread'].iloc[-1] <= spreadAddIn:
+            dfBuy.loc[len(dfBuy)] = [ex_df1.at[i,'timestamp'],ex_df2.at[i,'price'], ex_df1.at[i,'price'],ex_df1.at[i,'spread'],
+                                         amount, ex_df1.at[i,'gimp']]
+            buyIndex.append(i)
+            
+            
+        elif outControl == True and ex_df1.at[i,'spread'] >= spreadOut:
+            dfSell.loc[len(dfSell)] = [ex_df1.at[i,'timestamp'],ex_df2.at[i,'price'], ex_df1.at[i,'price'],ex_df1.at[i,'spread'],
+                                         amount, ex_df1.at[i,'gimp'], ex_df1.at[i,'usdkrw']]
+            sellIndex.append(i)
+            outControl = False
+            
+    
+    df = pd.concat([dfBuy,dfSell])
+    df.sort_values('timestamp', ascending = True, inplace = True)
+    df.reset_index(drop=True,inplace = True)
+
+    resultDf = pd.DataFrame(columns=['avgPriceKrw','outPriceKrw','avgPriceUsd','outPriceUsd','avgGimp','outGimp','avgSpread','outSpread','totalAmt','profitKrw','profitUsd','usdkrw'])
+    startIndex = 0
+
+    for i in df.index:
+        if pd.isna(df.at[i,'buyInPrice']):
+            totalAmt = df['amount'].iloc[startIndex:i].sum()
+            avgPriceKrw = (df['buyInPrice'].iloc[startIndex:i]*df['amount'].iloc[startIndex:i]).sum()/totalAmt
+            avgPriceUsd = (df['sellInPrice'].iloc[startIndex:i]*df['amount'].iloc[startIndex:i]).sum()/totalAmt
+            avgGimp = (df['gimp'].iloc[startIndex:i]*df['amount'].iloc[startIndex:i]).sum()/totalAmt
+            avgSpread = (df['buySpread'].iloc[startIndex:i]*df['amount'].iloc[startIndex:i]).sum()/totalAmt
+            
+            outSpread = df.at[i,'sellSpread']
+            outGimp = df.at[i,'gimp']
+            outPriceKrw = df.at[i,'buyOutPrice']
+            outPriceUsd = df.at[i,'sellOutPrice']
+            profitKrw = (outPriceKrw - avgPriceKrw)*totalAmt
+            profitUsd = (avgPriceUsd - outPriceUsd)*totalAmt
+            
+            usdkrw = df.at[i,'usdkrw']
+            
+            resultDf.loc[len(resultDf)] = [avgPriceKrw, outPriceKrw, avgPriceUsd, outPriceUsd, avgGimp, outGimp, avgSpread, outSpread, totalAmt, profitKrw, profitUsd, usdkrw]
+
+            startIndex = i+1
+    
+    pd.options.display.float_format = '{:.4f}'.format
+    
+    print(resultDf)
+    return resultDf, buyIndex, sellIndex
     
     
     

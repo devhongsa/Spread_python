@@ -1,4 +1,5 @@
 import gimp2
+import numpy as np
 import pandas as pd
 import time
 import datetime
@@ -21,13 +22,24 @@ if __name__ == '__main__':
     ex_1 = 'binance'
     ex_2 = 'upbit'
     
+    #각 거래소 ohlcv 리턴
     ex_df1 = gimp2.ohlcv(ex_1,'BTC/USDT', startTime, endTime)
     ex_df2 = gimp2.ohlcv(ex_2,'BTC/KRW', startTime, endTime)
     
-    ex_df1, ex_df2 = gimp2.dfParsing(ex_df1, ex_df2, startTime_usdkrw)
     
+    #2개 거래소 timestamp 동기화 및 여러 data  dataframe 추가 
+    ex_df1, ex_df2 = gimp2.dfParsing(ex_df1, ex_df2, startTime_usdkrw, maWindow=24)  #maWindow는 시간단위 
+    
+    #csv파일로 저장 
     #gimp2.saveDf(ex_df1)
     #gimp2.saveDf(ex_df2)
+
+    #최종 dataframe
+    print(ex_df1)
+    print(ex_df2)
     
-    #maWindow는 시간단위 
-    gimp2.plotDf(ex_df1,maWindow=24)
+    #매매기록 리턴
+    resultDf, buyIndex, sellIndex = gimp2.tradingResult(ex_df1, ex_df2, spreadIn=-0.6, spreadAddIn = -0.1, spreadOut = -0.1, amount = 1)
+    
+    #plot 그리기 
+    gimp2.plotDf(ex_df1, buyIndex, sellIndex)
