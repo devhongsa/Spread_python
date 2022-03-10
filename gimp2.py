@@ -1,4 +1,5 @@
 import FinanceDataReader as fdr
+import requests
 import ccxt
 import datetime
 import time
@@ -57,7 +58,7 @@ def dfParsing(ex_df1, ex_df2, start, maWindow):
     #2개 거래소 timestamp 동기화
     ex_1 = ex_df1['exchange'][0]
     
-    print('start data parsing')
+    print('start timestamp-data parsing')
     df = pd.concat([ex_df1,ex_df2])
     df.sort_values('timestamp', ascending=True)
     df.drop_duplicates(['timestamp'], keep=False, inplace = True)
@@ -77,12 +78,36 @@ def dfParsing(ex_df1, ex_df2, start, maWindow):
     #print(ex_df2)
 
 
-    
+    print('start exchange-rate parsing')
     #환율데이터 삽입 
-    usdkrw = fdr.DataReader('USD/KRW', start)
-    usdkrw = usdkrw.reset_index(drop=False)
+    start_str = start
+    date = datetime.datetime.strptime(start_str,'%Y-%m-%d')
     
-    print(usdkrw)
+    today = datetime.datetime.now() - datetime.timedelta(days=1)
+    
+    timestamp = []
+    usd_krw = []
+
+    while date<today:
+            
+        url = 'https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/%s/currencies/krw/usd.min.json'%start_str
+        response = requests.get(url).json()
+        timestamp.append(response['date'])
+        usd_krw.append(1/response['usd'])    
+        
+        date = date + datetime.timedelta(days=1)
+        start_str = date.strftime("%Y-%m-%d")
+        
+        time.sleep(0.05)
+        
+    usdkrw = pd.DataFrame({'Date':timestamp,'Close':usd_krw})
+    usdkrw['Date']=pd.to_datetime(usdkrw['Date'])
+
+
+    # usdkrw = fdr.DataReader('USD/KRW', start)
+    # usdkrw = usdkrw.reset_index(drop=False)
+    
+    # print(usdkrw)
     
     ex_df1['usdkrw'] = None
     
@@ -102,7 +127,9 @@ def dfParsing(ex_df1, ex_df2, start, maWindow):
             ex_df1.at[i,'usdkrw'] = float(usdkrw.at[usdkrw_index,'Close'])
     
     ex_df1['krw_price'] = ex_df1['price']*ex_df1['usdkrw']
-
+    
+    
+    print('start gimp-data parsing')
     #Gimp 데이터 추가 
     ex_df1['gimp'] = (ex_df2['price']-ex_df1['krw_price'])/ex_df1['krw_price'] * 100
     
@@ -161,6 +188,7 @@ def tradingResult(ex_df1,ex_df2, spreadIn, spreadAddIn, spreadOut, amount):
     buyIndex = []
     sellIndex = []
     
+    #진입청산 조건에 따른 매매시점 
     for i in ex_df1.index:
         
         if outControl == False : 
@@ -187,9 +215,17 @@ def tradingResult(ex_df1,ex_df2, spreadIn, spreadAddIn, spreadOut, amount):
     df.sort_values('timestamp', ascending = True, inplace = True)
     df.reset_index(drop=True,inplace = True)
 
+    #slippage 설정
+    slippage = 0.001
+    df['buyInPrice'] *= (1+slippage)
+    df['sellInPrice'] *= (1-slippage)
+    df['buyOutPrice'] *= (1 - slippage)
+    df['sellOutPrice'] *= (1 + slippage)
+    
     resultDf = pd.DataFrame(columns=['avgPriceKrw','outPriceKrw','avgPriceUsd','outPriceUsd','avgGimp','outGimp','avgSpread','outSpread','totalAmt','profitKrw','profitUsd','usdkrw'])
     startIndex = 0
 
+    #손익 분석 
     for i in df.index:
         if pd.isna(df.at[i,'buyInPrice']):
             totalAmt = df['amount'].iloc[startIndex:i].sum()
@@ -213,7 +249,19 @@ def tradingResult(ex_df1,ex_df2, spreadIn, spreadAddIn, spreadOut, amount):
     
     pd.options.display.float_format = '{:.4f}'.format
     
+    pnlDf = pd.DataFrame() 
+    
+    pnlDf['손익KRW환산'] = resultDf['profitUsd']*resultDf['usdkrw']*(1+resultDf['outGimp']/100) + resultDf['profitKrw']
+    pnlDf['수익률'] = pnlDf['손익KRW환산']/((resultDf['avgPriceUsd']*resultDf['usdkrw'] + resultDf['avgPriceKrw'])*resultDf['totalAmt'])*100
+    
+    profit = len(pnlDf[0<pnlDf['수익률']])
+    
     print(resultDf)
+    print(pnlDf)
+    print('\n')
+    print('매매 횟수 : {}'.format(len(pnlDf)))
+    print('수익 횟수 : {} 수익 확률 : {}%'.format(profit,round(profit/len(pnlDf)*100,2)))
+    print('수익률 평균 : {}%'.format(round(pnlDf['수익률'].mean(),4)))
     return resultDf, buyIndex, sellIndex
     
     

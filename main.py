@@ -3,7 +3,6 @@ import numpy as np
 import pandas as pd
 import time
 import datetime
-import matplotlib.pyplot as plt
 
 now=time.time()   #unixtime
 now2=int(now*1000)
@@ -14,7 +13,7 @@ noww=now_date.strftime("%Y-%m-%d %H:%M:%S")  #datetime to string,  이거는 end
 
 if __name__ == '__main__':
     
-    startTime = '2022-02-20 00:00:00'
+    startTime = '2022-03-01 00:00:00'
     startTime_usdkrw = startTime[:10]
     endTime = noww
     
@@ -38,7 +37,8 @@ if __name__ == '__main__':
     print(ex_df1)
     print(ex_df2)
     
-    #매매기록 리턴
+    #매매기록, 손익분석 dataframe 리턴
+    #buyIndex sellIndex는 매매했던 시점의 dataframe 인덱스 넘버.  이 인덱스넘버는 plot에서 매매시점 표시할때 사용.
     resultDf, buyIndex, sellIndex = gimp2.tradingResult(ex_df1, ex_df2, spreadIn=-0.6, spreadAddIn = -0.1, spreadOut = -0.1, amount = 1)
     
     #plot 그리기 
