@@ -79,35 +79,36 @@ def dfParsing(ex_df1, ex_df2, start, maWindow):
 
 
     print('start exchange-rate parsing')
+    
     #환율데이터 삽입 
-    start_str = start
-    date = datetime.datetime.strptime(start_str,'%Y-%m-%d')
+    #################### finance-datareader 오류시 사용 ##########################
+    # start_str = start
+    # date = datetime.datetime.strptime(start_str,'%Y-%m-%d')
     
-    today = datetime.datetime.now() - datetime.timedelta(days=1)
+    # today = datetime.datetime.now() - datetime.timedelta(days=1)
     
-    timestamp = []
-    usd_krw = []
+    # timestamp = []
+    # usd_krw = []
 
-    while date<today:
+    # while date<today:
             
-        url = 'https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/%s/currencies/krw/usd.min.json'%start_str
-        response = requests.get(url).json()
-        timestamp.append(response['date'])
-        usd_krw.append(1/response['usd'])    
+    #     url = 'https://cdn.jsdelivr.net/gh/fawazahmed0/currency-api@1/%s/currencies/krw/usd.min.json'%start_str
+    #     response = requests.get(url).json()
+    #     timestamp.append(response['date'])
+    #     usd_krw.append(1/response['usd'])    
         
-        date = date + datetime.timedelta(days=1)
-        start_str = date.strftime("%Y-%m-%d")
+    #     date = date + datetime.timedelta(days=1)
+    #     start_str = date.strftime("%Y-%m-%d")
         
-        time.sleep(0.05)
+    #     time.sleep(0.05)
         
-    usdkrw = pd.DataFrame({'Date':timestamp,'Close':usd_krw})
-    usdkrw['Date']=pd.to_datetime(usdkrw['Date'])
-
-
-    # usdkrw = fdr.DataReader('USD/KRW', start)
-    # usdkrw = usdkrw.reset_index(drop=False)
+    # usdkrw = pd.DataFrame({'Date':timestamp,'Close':usd_krw})
+    # usdkrw['Date']=pd.to_datetime(usdkrw['Date'])
+    #############################################################################
     
-    # print(usdkrw)
+
+    usdkrw = fdr.DataReader('USD/KRW', start)
+    usdkrw = usdkrw.reset_index(drop=False)
     
     ex_df1['usdkrw'] = None
     
@@ -178,7 +179,7 @@ def plotDf(ex_df1, buyIndex, sellIndex):
     plt.show()
     
     
-def tradingResult(ex_df1,ex_df2, spreadIn, spreadAddIn, spreadOut, amount):
+def tradingResult(ex_df1,ex_df2, spreadIn, spreadAddIn, spreadOut, amount, slippage):
     
     dfBuy = pd.DataFrame(columns=['timestamp','buyInPrice','sellInPrice','buySpread','amount','gimp'])
     dfSell = pd.DataFrame(columns=['timestamp','buyOutPrice','sellOutPrice','sellSpread','amount','gimp','usdkrw'])
@@ -216,7 +217,7 @@ def tradingResult(ex_df1,ex_df2, spreadIn, spreadAddIn, spreadOut, amount):
     df.reset_index(drop=True,inplace = True)
 
     #slippage 설정
-    slippage = 0.001
+    slippage = slippage/100
     df['buyInPrice'] *= (1+slippage)
     df['sellInPrice'] *= (1-slippage)
     df['buyOutPrice'] *= (1 - slippage)
