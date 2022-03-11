@@ -38,10 +38,12 @@ if __name__ == '__main__':
     print(ex_df2)
     
     #매매기록, 손익분석 dataframe 리턴
+    resultDf, buyIndex, sellIndex = gimp2.tradingResult(ex_df1, ex_df2, spreadIn=-0.6, spreadAddIn = -0.1, spreadOut = -0.1, amount = 1, slippage = 0.1)
     #spreadIn : ma와 몇퍼센트 떨어졌을때 진입할 것인지, spreadAddIn : 처음 진입했던 spread 수치에서 얼마나 더 벌어졌을때 추가진입할것인지 
     #spreadOut : ma와 몇퍼센트 안으로 좁혀졌을때 청산할 것인지, amount : 코인진입개수, slippage : 진입과 청산시 slippage 퍼센트
-    resultDf, buyIndex, sellIndex = gimp2.tradingResult(ex_df1, ex_df2, spreadIn=-0.6, spreadAddIn = -0.1, spreadOut = -0.1, amount = 1, slippage = 0.1)
-    
+
+
+
     #plot 그리기 
     #buyIndex sellIndex는 매매했던 시점의 dataframe 인덱스 넘버.  이 인덱스넘버는 plot에서 매매시점 표시할때 사용.
     gimp2.plotDf(ex_df1, buyIndex, sellIndex)
