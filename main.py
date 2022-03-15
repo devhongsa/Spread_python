@@ -6,16 +6,16 @@ import datetime
 
 now=time.time()   #unixtime
 now2=int(now*1000)
-
-now_date=datetime.datetime.fromtimestamp(now)  #unixtime to datetime
-
-noww=now_date.strftime("%Y-%m-%d %H:%M:%S")  #datetime to string,  이거는 end argument에 넣을 꺼 
+now_date=datetime.datetime.fromtimestamp(now)-datetime.timedelta(hours=9)  #현재 utc시간 
+#now_date=datetime.datetime.fromtimestamp(now) #현재 한국시간  
+noww=now_date.strftime("%Y-%m-%d %H:%M:%S")  #datetime to string
 
 if __name__ == '__main__':
     
-    startTime = '2022-03-01 00:00:00'
+    #utc 시간으로 넣기
+    startTime = '2022-03-10 00:00:00'
     startTime_usdkrw = startTime[:10]
-    endTime = noww
+    endTime = noww   #noww는 현재 utc시간
     
     #ex_1은 외국거래소 , ex_2는 한국거래소 
     ex_1 = 'binance'
@@ -29,7 +29,7 @@ if __name__ == '__main__':
     #2개 거래소 timestamp 동기화 및 여러 data  dataframe 추가 
     ex_df1, ex_df2 = gimp2.dfParsing(ex_df1, ex_df2, startTime_usdkrw, maWindow=24)  #maWindow는 시간단위 
     
-    #csv파일로 저장 
+    #csv파일로 'C:\\Users\\Public\\Documents\\' 경로에 저장 
     #gimp2.saveDf(ex_df1)
     #gimp2.saveDf(ex_df2)
 

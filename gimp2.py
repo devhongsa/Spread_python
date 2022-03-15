@@ -7,26 +7,20 @@ import pandas as pd
 import exchangeOption as op
 import matplotlib.pyplot as plt
 
-now=time.time()   #unixtime
-now2=int(now*1000)
-
-now_date=datetime.datetime.fromtimestamp(now)  #unixtime to datetime
-
-noww=now_date.strftime("%Y-%m-%d %H:%M:%S")  #datetime to string,  이거는 end argument에 넣을 꺼 
 
 
 def ohlcv(exchange, symbol, start, end):
     Exchange = op.exchangeOption(exchange)
     
     start=datetime.datetime.strptime(start,'%Y-%m-%d %H:%M:%S')
-    start=start-datetime.timedelta(hours=9)   # utc 시간
+    #start=start-datetime.timedelta(hours=9)   # utc 시간
     
     end = datetime.datetime.strptime(end,'%Y-%m-%d %H:%M:%S')
-    end = end-datetime.timedelta(hours=9)
+    #end = end-datetime.timedelta(hours=9)     #
     
     start1=start.strftime("%Y-%m-%d %H:%M:%S")
     since = Exchange.parse8601(start1)
-
+    
     timestamp=[]
     price=[]
     
@@ -47,10 +41,10 @@ def ohlcv(exchange, symbol, start, end):
     
     ex_df = pd.DataFrame({'timestamp' : timestamp, 'price' : price})
     ex_df['timestamp']=pd.to_datetime(ex_df['timestamp']/1000, unit='s')
-    ex_df['timestamp']=ex_df['timestamp']+datetime.timedelta(hours=9)
+    #ex_df['timestamp']=ex_df['timestamp']+datetime.timedelta(hours=9)    #
     ex_df['exchange'] = exchange
     ex_df['symbol'] = symbol
-    #print(ex_df)
+    print(ex_df['exchange'][0] + ' done')
     return ex_df
     
 def dfParsing(ex_df1, ex_df2, start, maWindow):
@@ -74,11 +68,7 @@ def dfParsing(ex_df1, ex_df2, start, maWindow):
     ex_df1.reset_index(drop=True, inplace=True)
     ex_df2.reset_index(drop=True, inplace=True)
 
-    #print(ex_df1)
-    #print(ex_df2)
-
-
-    print('start exchange-rate parsing')
+   
     
     #환율데이터 삽입 
     #################### finance-datareader 오류시 사용 ##########################
@@ -130,7 +120,7 @@ def dfParsing(ex_df1, ex_df2, start, maWindow):
     ex_df1['krw_price'] = ex_df1['price']*ex_df1['usdkrw']
     
     
-    print('start gimp-data parsing')
+    
     #Gimp 데이터 추가 
     ex_df1['gimp'] = (ex_df2['price']-ex_df1['krw_price'])/ex_df1['krw_price'] * 100
     
@@ -142,7 +132,7 @@ def dfParsing(ex_df1, ex_df2, start, maWindow):
     
     pd.options.display.float_format = '{:.4f}'.format
     
-    #print(ex_df1)
+
     return ex_df1, ex_df2
 
 def saveDf(df):
@@ -168,7 +158,6 @@ def plotDf(ex_df1, buyIndex, sellIndex):
     plt.plot(ex_df1['timestamp'],ex_df1['gimp'])
     plt.plot(ex_df1['timestamp'],ex_df1['ma'])
 
-    #plt.fill_between(ex_df1['timestamp'], ex_df1['gimp'], 0, where=ex_df1['spread']>=0.55, facecolor='red', alpha=0.5)
     plt.fill_between(ex_df1['timestamp'], ex_df1['gimp'].min(), ex_df1['gimp'].max(), where=(abs(ex_df1['spread'])>=0.6), facecolor='red', alpha=0.5)
     
     for i in buyIndex:
