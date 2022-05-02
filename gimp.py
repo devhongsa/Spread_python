@@ -198,8 +198,8 @@ def dfParsing(ex_df1, ex_df2, start, maWindow, data):
     print("start Gimp data parsing")
     ex_df1['sellGimp'] = (ex_df2['bidPrice']-ex_df1['krw_askPrice'])/ex_df1['krw_askPrice'] * 100
     ex_df1['buyGimp'] = (ex_df2['askPrice']-ex_df1['krw_bidPrice'])/ex_df1['krw_bidPrice'] * 100
-    #ma , spread 데이터 추가 
     
+    #ma , spread 데이터 추가 
     if data == '1s':   
         maWindow = maWindow*60*60
     elif data == '1m':
