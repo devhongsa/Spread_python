@@ -63,9 +63,10 @@ def orderbook(exchange, symbol, date_from, date_to):
         while date_from <= date_to:
             
             date_from_str = datetime.datetime.strftime(date_from,'%Y-%m-%d')
+            date = date_from_str.split('-')
             
             df = pd.read_csv(
-                "s3://bxpartners-tardis-data/{}/book_snapshot_5/{}/{}.csv.gz".format(exchange,symbol,date_from_str),
+                "s3://bx-landing/tardis/book_snapshot_5/{}/{}/{}/{}/{}/data.csv.gz".format(exchange,symbol,date[0],date[1],date[2]),
                  storage_options={
                     "key": config.AWS_KEY,
                     "secret": config.AWS_SECRET
@@ -102,6 +103,7 @@ def dfParsing(ex_df1, ex_df2, start, maWindow, data):
     
     #2개 거래소 timestamp 동기화
     ex_1 = ex_df1.at[0,'exchange']
+    ex_2 = ex_df2.at[0,'exchange']
     
     print('start timestamp-data parsing')
     df = pd.concat([ex_df1,ex_df2])
@@ -121,10 +123,10 @@ def dfParsing(ex_df1, ex_df2, start, maWindow, data):
             if type(df.at[i,'exchange']) == str: 
                 if df.at[i,'exchange'] == ex_1:
                     ex1_index.append(i)
-                    print('binance',i, df.index[-1])
+                    print(ex_1, i, df.index[-1])
                 else:
                     ex2_index.append(i)
-                    print('upbit',i, df.index[-1])
+                    print(ex_2 ,i, df.index[-1])
             else:
                 ex1_index.append(i)
                 ex2_index.append(i)
@@ -211,7 +213,9 @@ def dfParsing(ex_df1, ex_df2, start, maWindow, data):
     
     pd.options.display.float_format = '{:.4f}'.format
     
-
+    #ex_df1.to_csv('./Dataframe/{}_{}.xlsx'.format(ex_1,start), mode='w')
+    #ex_df2.to_csv('./Dataframe/{}_{}.xlsx'.format(ex_2,start), mode='w')
+    
     return ex_df1, ex_df2
 
 def saveDf(df):
@@ -321,8 +325,11 @@ def tradingResult(ex_df1, ex_df2, param):
             outGimp = df.at[i,'gimp']
             outPriceKrw = df.at[i,'buyOutPrice']
             outPriceUsd = df.at[i,'sellOutPrice']
-            profitKrw = (outPriceKrw - avgPriceKrw)*totalAmt
-            profitUsd = (avgPriceUsd - outPriceUsd)*totalAmt
+            FeeKrw = avgPriceKrw*totalAmt*0.0005 + outPriceKrw*totalAmt*0.0005
+            FeeUsd = avgPriceUsd*totalAmt*0.00075 + outPriceUsd*totalAmt*0.00075
+           
+            profitKrw = (outPriceKrw - avgPriceKrw)*totalAmt - FeeKrw
+            profitUsd = (avgPriceUsd - outPriceUsd)*totalAmt - FeeUsd
             
             usdkrw = df.at[i,'usdkrw']
             
@@ -348,7 +355,7 @@ def tradingResult(ex_df1, ex_df2, param):
     
     profitCount = len(pnlDf[0<pnlDf['수익률']])
     
-    print(resultDf)
+    #print(resultDf)
     print(pnlDf)
     print('\n')
     print("spreadIn : {}".format(spreadIn))
@@ -359,7 +366,7 @@ def tradingResult(ex_df1, ex_df2, param):
         print('매매당 수익률 평균 : {}%'.format(round(pnlDf['수익률'].mean(),4)))
         print('총수익률 : {}%'.format(round(pnlDf['총수익률'].iloc[-1],4)))
         
-    return resultDf, pnlDf, buyIndex, sellIndex
+    return pnlDf, buyIndex, sellIndex
     
 
 def mf(ex_df1, ex_df2, param):
@@ -368,7 +375,7 @@ def mf(ex_df1, ex_df2, param):
     startAssetUsd = param['startAssetUsd']
 
     mlflow.set_tracking_uri('http://127.0.0.1:5000')
-    mlflow.set_experiment('Test_2')
+    mlflow.set_experiment('Test_3')
 
     spreadInFrom = param['spreadInFrom']
     spreadInTo = param['spreadInTo']
@@ -376,6 +383,8 @@ def mf(ex_df1, ex_df2, param):
 
     spreadInDelta = param['spreadInDelta']
     spreadOutDelta = param['spreadOutDelta']
+    
+    result = pd.DataFrame(columns=['spreadIn', 'spreadOut', 'profitRate', 'tradingCount', 'profit_Probability'])
 
 
     with mlflow.start_run():
@@ -386,7 +395,7 @@ def mf(ex_df1, ex_df2, param):
             while round(outSpread,2) <= until:
             
                 with mlflow.start_run(nested=True):
-                    resultDf, pnlDf, buyIndex, sellIndex = tradingResult(ex_df1, ex_df2, 
+                    pnlDf, buyIndex, sellIndex = tradingResult(ex_df1, ex_df2, 
                     {'startAssetKrw' : startAssetKrw,
                      'startAssetUsd' : startAssetUsd,
                      'spreadInFrom' : spreadInFrom,
@@ -398,18 +407,22 @@ def mf(ex_df1, ex_df2, param):
                      })
                     param_mlflow = {'spreadIn':spreadInFrom, 'spreadOut':outSpread}
                     mlflow.log_params(param_mlflow)
-                    #매매기록, 손익분석 dataframe 리턴
                     
-                    #spreadIn : ma와 몇퍼센트 떨어졌을때 진입할 것인지, spreadAddIn : 처음 진입했던 spread 수치에서 얼마나 더 벌어졌을때 추가진입할것인지 
-                    #spreadOut : ma와 몇퍼센트 안으로 좁혀졌을때 청산할 것인지, slippage : 진입과 청산시 slippage 퍼센트, count = 추가매수 횟수 제한
-                    log_metric("profitRate", round(pnlDf['총수익률'].iloc[-1],4))
-                    log_metric("tradingCount", len(pnlDf))
+                    profitRate = round(pnlDf['총수익률'].iloc[-1],4)
+                    tradingCount = len(pnlDf)
+                    profit_prob = round(len(pnlDf[0<pnlDf['수익률']])/tradingCount*100,2)
+                    
+                    result.loc[len(result)] = [spreadInFrom, outSpread, profitRate, tradingCount, profit_prob]
+
+                    log_metric("profitRate", profitRate)
+                    log_metric("tradingCount", tradingCount)
+                    log_metric('profit_probability', profit_prob)
                     outSpread += spreadOutDelta
                     outSpread = round(outSpread,2)
                     
             spreadInFrom += spreadInDelta
             spreadInFrom = round(spreadInFrom,2)
     
-    return resultDf, pnlDf, buyIndex, sellIndex 
+    return result, buyIndex, sellIndex
     
     

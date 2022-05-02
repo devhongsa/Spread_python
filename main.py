@@ -26,16 +26,17 @@ def main_aws(date_from, date_to, param, ex_param):
     
     if param['mlflow']:
         #여러 파라미터 대입 분석. mlflow 
-        resultDf, pnlDf, buyIndex, sellIndex = gimp.mf(ex_df1,ex_df2,param)
+        result, buyIndex, sellIndex = gimp.mf(ex_df1,ex_df2,param)
+        gimp.plotDf(ex_df1, buyIndex, sellIndex)
+        return ex_df1, ex_df2, result
+        
     else:
         #단일 파라미터 
-        resultDf, pnlDf, buyIndex, sellIndex = gimp.tradingResult(ex_df1, ex_df2, param)
+        pnlDf, buyIndex, sellIndex = gimp.tradingResult(ex_df1, ex_df2, param)
+        gimp.plotDf(ex_df1, buyIndex, sellIndex)
+        return ex_df1, ex_df2, pnlDf
     
-    #plot 그리기 
-    #buyIndex sellIndex는 매매했던 시점의 dataframe 인덱스 넘버.  이 인덱스넘버는 plot에서 매매시점 표시할때 사용.
-    gimp.plotDf(ex_df1, buyIndex, sellIndex)
-    
-    return ex_df1, ex_df2, resultDf, pnlDf
+
 
 
 def main_ccxt(date_from, date_to, param, ex_param):
@@ -66,16 +67,15 @@ def main_ccxt(date_from, date_to, param, ex_param):
     
     if param['mlflow']:
         #여러 파라미터 대입 분석. mlflow 
-        resultDf, pnlDf, buyIndex, sellIndex = gimp.mf(ex_df1,ex_df2,param)
+        result, buyIndex, sellIndex = gimp.mf(ex_df1,ex_df2,param)
+        gimp.plotDf(ex_df1, buyIndex, sellIndex)
+        return ex_df1, ex_df2, result
     else:
         #단일 파라미터 
-        resultDf, pnlDf, buyIndex, sellIndex = gimp.tradingResult(ex_df1, ex_df2, param)
+        pnlDf, buyIndex, sellIndex = gimp.tradingResult(ex_df1, ex_df2, param)
+        gimp.plotDf(ex_df1, buyIndex, sellIndex)
+        return ex_df1, ex_df2, pnlDf
     
-    #plot 그리기 
-    #buyIndex sellIndex는 매매했던 시점의 dataframe 인덱스 넘버.  이 인덱스넘버는 plot에서 매매시점 표시할때 사용.
-    gimp.plotDf(ex_df1, buyIndex, sellIndex)
-    
-    return ex_df1, ex_df2, resultDf, pnlDf
 
 if __name__ == '__main__':
     
@@ -86,37 +86,40 @@ if __name__ == '__main__':
              'spreadAddIn' : -0.1,
              'spreadOutFrom' : 0.1,
              'slippage': 0.1,
-             'count' : 3,
+             'count' : 2,
              'mlflow': False
              }
     
     #파라미터 변경 분석
     param_mlflow =  {'startAssetKrw' : 500000000,
                      'startAssetUsd' : 500000,
-                     'spreadInFrom' : -1,
-                     'spreadInTo' : -0.5,
+                     'spreadInFrom' : -1.3,
+                     'spreadInTo' : -0.7,
                      'spreadAddIn' : -0.1,
-                     'spreadOutFrom' : 0.1,
-                     'spreadOutTo' : 0.3,
+                     'spreadOutFrom' : 0.3,
+                     'spreadOutTo' : 0.6,
                      'spreadInDelta' : 0.02,
                      'spreadOutDelta' : 0.02,
                      'slippage': 0.1,
-                     'count' : 3,
+                     'count' : 2,
                      'mlflow' : True
                      }
     
-    ex_param = {'ex_1' : 'binance',     #외국거래소
+    ex_param = {'ex_1' : 'binance-futures',     #외국거래소
                 'ex_2' : 'upbit',       #한국거래소
                 'symbol': 'BTC'}
     
-    date_from = '2022-03-26'
+    date_from = '2021-12-01'
     date_to = '2022-03-30'
     
     #빠른 분석 ohlcv 1분data
-    #ex_df1, ex_df2, resultDf, pnlDf = main_ccxt(date_from, date_to, param_mlflow, ex_param)
+    #ex_df1, ex_df2, result = main_ccxt(date_from, date_to, param_mlflow, ex_param)
     
     #정밀 분석 orderbook 1초data
-    ex_df1, ex_df2, resultDf, pnlDf = main_aws(date_from, date_to, param_mlflow, ex_param)
+    ex_df1, ex_df2, result = main_aws(date_from, date_to, param_mlflow, ex_param)
+    
+    #ex_df1.to_csv('./Dataframe/{}_{}.xlsx'.format(ex_param['ex_1'],date_from), mode='w')
+    #ex_df2.to_csv('./Dataframe/{}_{}.xlsx'.format(ex_param['ex_2'],date_from), mode='w')
     
     
     
