@@ -66,18 +66,20 @@ def dfParsing(ex_df1, ex_df2):
     ex_df1['sellSpread'] = (ex_df1['bidPrice']-ex_df2['askPrice'])/ex_df1['bidPrice']*100
     
     return ex_df1, ex_df2 
-
+    
 def plotDf(ex_df1, buyIndex=[], sellIndex=[]):
     
-    ex_df1.loc[ex_df1['buySpread']>=0,'buySpread'] = 0
-    ex_df1.loc[ex_df1['sellSpread']<=0,'sellSpread'] = 0
+    df = ex_df1
+    
+    df.loc[df['buySpread']>=0,'buySpread'] = 0
+    df.loc[df['sellSpread']<=0,'sellSpread'] = 0
     
     fig, ax1 = plt.subplots()
-    ax1.plot(ex_df1['timestamp'], ex_df1['buySpread'], color='red')
-    ax1.plot(ex_df1['timestamp'], ex_df1['sellSpread'], color='blue')
+    ax1.plot(df['timestamp'], df['buySpread'], color='red')
+    ax1.plot(df['timestamp'], df['sellSpread'], color='blue')
     
     ax2 = ax1.twinx()
-    ax2.plot(ex_df1['timestamp'], ex_df1['askPrice'], color='black')
+    ax2.plot(df['timestamp'], df['askPrice'], color='black')
     
     
     # plt.plot(ex_df1['timestamp'],ex_df1['buySpread'])
@@ -219,7 +221,7 @@ def mf(ex_df1, ex_df2, param):
     startAssetUsd = param['startAssetUsd']
 
     mlflow.set_tracking_uri('http://127.0.0.1:5000')
-    mlflow.set_experiment('binance_binance')
+    mlflow.set_experiment('okex_binance')
 
     spreadInFrom = param['spreadInFrom']
     spreadInTo = param['spreadInTo']
@@ -273,13 +275,13 @@ def mf(ex_df1, ex_df2, param):
 
 if __name__ == "__main__":
     
-    #spot : binance, huobi, okex
-    #future : binance-futures, bitmex, bybit, ftx, huobi-dm, okex-futures
+    #spot : binance(BTCUSDT), huobi(BTCUSDT), okex(BTC-USDT)
+    #future : binance-futures(BTCUSDT), bitmex, bybit, ftx, huobi-dm-swap(BTC-USD), okex-swap(BTC-USDT-SWAP)
     
     
-    ex_param = {'spot' : 'binance',             #spot
+    ex_param = {'spot' : 'okex',             #spot
                 'future' : 'binance-futures',       #future
-                'spot_symbol': 'BTCUSDT',
+                'spot_symbol': 'BTC-USDT',
                 'future_symbol': 'BTCUSDT'}
     
     param_mlflow =  {
@@ -294,7 +296,7 @@ if __name__ == "__main__":
                      'slippage': 0.1,
                      'count' : 1,
                      'mlflow' : True,
-                     'spotFee' : 0.00075,
+                     'spotFee' : 0.001,
                      'futureFee' : 0.0004
                      }
     
@@ -303,7 +305,12 @@ if __name__ == "__main__":
     
     ex_df1, ex_df2 = orderbook(date_from, date_to, ex_param)
     spot, future = dfParsing(ex_df1, ex_df2)
+    resultDf, pnlDf, buyIndex, sellIndex = tradingResult(spot, future, param_mlflow)
     plotDf(spot)
-    #resultDf, pnlDf, buyIndex, sellIndex = tradingResult(spot, future, param_mlflow)
     result, buyIndex, sellIndex = mf(spot,future,param_mlflow)
+    
+    dfa = spot[spot['buySpread']<=-0.3]
+    dfb = spot[spot['sellSpread']>=0.3]
+    print(len(dfa))
+    print(len(dfb))
     
