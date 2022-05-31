@@ -2,6 +2,7 @@ import pandas as pd
 import gimp
 import matplotlib.pyplot as plt
 import mlflow
+from multiprocessing import Pool
 
 def orderbook(date_from, date_to, ex_param):
         
@@ -16,10 +17,17 @@ def orderbook(date_from, date_to, ex_param):
     ex_2 = ex_param['future']
     symbol_2 = ex_param['future_symbol']
     
-    spot = gimp.orderbook(ex_1, symbol_1,date_from, date_to)
-    future = gimp.orderbook(ex_2, symbol_2, date_from, date_to)
+    pool = Pool(2)
+    
+    result = pool.starmap(gimp.orderbook,[[ex_1, symbol_1,date_from, date_to],[ex_2, symbol_2, date_from, date_to]])
+    
+    pool.close()
+    pool.join()
+    
+    #spot = gimp.orderbook(ex_1, symbol_1,date_from, date_to)
+    #future = gimp.orderbook(ex_2, symbol_2, date_from, date_to)
 
-    return spot, future    
+    return result[0], result[1]   
     
     
 def dfParsing(ex_df1, ex_df2):
@@ -275,14 +283,14 @@ def mf(ex_df1, ex_df2, param):
 
 if __name__ == "__main__":
     
-    #spot : binance(BTCUSDT), huobi(BTCUSDT), okex(BTC-USDT)
-    #future : binance-futures(BTCUSDT), bitmex, bybit, ftx, huobi-dm-swap(BTC-USD), okex-swap(BTC-USDT-SWAP)
+    #spot : binance(BTCUSDT)0.00075, huobi(BTCUSDT)0.002, okex(BTC-USDT)0.001
+    #future : binance-futures(BTCUSDT)0.0004, bitmex, bybit, ftx, huobi-dm-swap(BTC-USD)0.0004, okex-swap(BTC-USDT-SWAP)0.0005
     
     
     ex_param = {'spot' : 'okex',             #spot
                 'future' : 'binance-futures',       #future
-                'spot_symbol': 'BTC-USDT',
-                'future_symbol': 'BTCUSDT'}
+                'spot_symbol': 'ETH-USDT',
+                'future_symbol': 'ETHUSDT'}
     
     param_mlflow =  {
                      'startAssetUsd' : 100000,
@@ -309,8 +317,8 @@ if __name__ == "__main__":
     plotDf(spot)
     result, buyIndex, sellIndex = mf(spot,future,param_mlflow)
     
-    dfa = spot[spot['buySpread']<=-0.3]
-    dfb = spot[spot['sellSpread']>=0.3]
-    print(len(dfa))
-    print(len(dfb))
+    #dfa = spot[spot['buySpread']<=-0.3]
+    #dfb = spot[spot['sellSpread']>=0.3]
+    #print(len(dfa))
+    #print(len(dfb))
     
