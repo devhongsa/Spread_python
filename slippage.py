@@ -255,5 +255,7 @@ if __name__ == "__main__":
     ex_df1, ex_df2 = orderbook(date_from, date_to, ex_param, orderbookSize)
     ex_df1, ex_df2 = dfParsing(ex_df1, ex_df2)
     
-    slippageDf = slippage(ex_df1, ex_df2, 100000, 0.25, orderbookSize)
+    slippageDf = slippage(ex_df1, ex_df2, 100000, 0.22, orderbookSize)
+    
+    slippageDf.to_csv('./slippage.csv')
     
